@@ -3,6 +3,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use first" #-}
+
 module Lib where 
 -- Created by Nikhil Kamath
 -- 507012
@@ -319,12 +320,12 @@ instance (Graph gr, Graph gr', Arbitrary (gr a b), Arbitrary (gr' a b), Arbitrar
     arbitrary = do
         g <- arbitrary :: Gen (gr a b)
         let ns  = labNodes g
-            es  = labEdges g
-            -- es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
+            -- es  = labEdges g
+            es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
             -- es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- NEGATIVE WEIGHTS
             es'  = es ++ [(b, a, x) | (a, b, x) <- es] -- UNDIRECTED
-            g'  = mkGraph ns es :: gr a b
-            g'' = mkGraph ns es :: gr' a b
+            g'  = mkGraph ns es' :: gr a b
+            g'' = mkGraph ns es' :: gr' a b
         return (g' :?=: g'')
 
     shrink :: (Eq a, Eq b, Arbitrary (gr a b), Arbitrary (gr' a b)) => Equivs gr gr' a b -> [Equivs gr gr' a b]
@@ -387,13 +388,46 @@ prop_CrossBCC (g :?=: g') = not (isEmpty g) ==>
   where 
     b  = Set $ bcc g 
     b' = Set $ map (convert g) (bcc g')
-  
-  
+
+
+prop_CrossBFSAll :: (Graph gr2, Graph gr1, Eq a, Eq b) => Equivs gr1 gr2 a b -> Property
+prop_CrossBFSAll (g :?=: g') = not (isEmpty g) ==>
+  bs === bs'
+  where 
+    ns = nodes g 
+    bs  = map (Set . flip bfs g)  ns 
+    bs' = map (Set . flip bfs g') ns
+
+prop_CrossLevel :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossLevel (g :?=: g') = not (isEmpty g) ==>
+  ls === ls' 
+  where 
+    ns = nodes g 
+    ls  = map (Set . flip level g)  ns 
+    ls' = map (Set . flip level g') ns
+
+prop_CrossBFE :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossBFE (g :?=: g') = not (isEmpty g) ==>
+  es === es' 
+  where 
+    ns  = nodes g 
+    es  = map (Set . flip bfe g)  ns 
+    es' = map (Set . flip bfe g') ns
+
+
+prop_CrossBFT :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossBFT (g :?=: g') = not (isEmpty g) ==>
+  ts === ts' 
+  where 
+    ns  = nodes g 
+    ts  = map (Set . flip bft g)  ns 
+    ts' = map (Set . flip bft g') ns
 
 type G0 = Data.Graph.Inductive.Gr 
 type G1 = Data.Graph.Inductive.Tree.Gr
 type GraphPair = Equivs G0 G1 Int Int 
 
+suite :: IO () 
 suite = do
     quickCheck (prop_Equivs      :: GraphPair -> Bool)
     quickCheck (prop_CrossAp     :: GraphPair -> Property)
@@ -402,3 +436,7 @@ suite = do
     quickCheck (prop_CrossIDom   :: GraphPair -> Property)
     quickCheckWith stdArgs{maxSuccess=1000} (prop_CrossGVDOut :: GraphPair -> Property)
     quickCheck (prop_CrossBCC    :: GraphPair -> Property)
+    quickCheck (prop_CrossBFSAll :: GraphPair -> Property)
+    quickCheck (prop_CrossLevel  :: GraphPair -> Property)
+    quickCheck (prop_CrossBFE    :: GraphPair -> Property)
+    quickCheck (prop_CrossBFT    :: GraphPair -> Property)
