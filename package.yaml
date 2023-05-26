@@ -24,6 +24,7 @@ dependencies:
 - QuickCheck
 - fgl
 - fgl-arbitrary 
+- containers
 
 ghc-options:
 - -Wall

@@ -12,6 +12,7 @@ import Test.QuickCheck
 import Data.Graph.Inductive
 import Data.Graph.Inductive.Tree
 import Data.Graph.Inductive.Arbitrary
+import Data.Tree
 import Data.List
 import Data.Maybe
 
@@ -257,7 +258,7 @@ prop_NEMapToGMap g (Fn (fn :: a -> c)) (Fn (fe :: b -> d)) =
 -- may have different behaviors based on their dependencies in the graph
 --
 -- this property also doesnt hold when the `Fun` argument isn't commutative
--- (see most counterexamples given by quickCheck)
+-- (see most counterexamples given by qc)
 prop_UFoldFusionWrong :: forall gr a b c. (DynGraph gr, Eq c) =>
     gr a b -> Context a b -> Fun (Context a b, c) c -> c -> Bool
 prop_UFoldFusionWrong g c (Fn2 f) a =
@@ -315,7 +316,7 @@ convert _ g =
 data Equivs gr gr' a b = gr a b :?=: gr' a b deriving Show
 
 
-instance (Graph gr, Graph gr', Arbitrary (gr a b), Arbitrary (gr' a b), Arbitrary a, Arbitrary b, Eq a, Eq b, Num b) => Arbitrary (Equivs gr gr' a b) where
+instance (Graph gr, Graph gr', Arbitrary (gr a b), Arbitrary (gr' a b), Arbitrary a, Arbitrary b, Eq a, Num b) => Arbitrary (Equivs gr gr' a b) where
     arbitrary :: (Arbitrary (gr a b), Arbitrary a, Arbitrary b, Num b) => Gen (Equivs gr gr' a b)
     arbitrary = do
         g <- arbitrary :: Gen (gr a b)
@@ -328,7 +329,7 @@ instance (Graph gr, Graph gr', Arbitrary (gr a b), Arbitrary (gr' a b), Arbitrar
             g'' = mkGraph ns es' :: gr' a b
         return (g' :?=: g'')
 
-    shrink :: (Eq a, Eq b, Arbitrary (gr a b), Arbitrary (gr' a b)) => Equivs gr gr' a b -> [Equivs gr gr' a b]
+    shrink :: (Eq a, Arbitrary (gr a b), Arbitrary (gr' a b)) => Equivs gr gr' a b -> [Equivs gr gr' a b]
     shrink (g :?=: _) =
         let gs = shrink g in
             map (\j -> j :?=: convert j) gs
@@ -340,7 +341,7 @@ instance (Graph gr, Graph gr', Arbitrary (gr a b), Arbitrary (gr' a b), Arbitrar
 prop_Equivs :: (Eq a, Eq b, Graph gr, Graph gr') => Equivs gr gr' a b -> Bool
 prop_Equivs (g :?=: g') = g `equal'` g'
 
-prop_CrossAp :: (DynGraph gr, DynGraph gr0, Eq a, Eq b) =>
+prop_CrossAp :: (DynGraph gr, DynGraph gr0, Eq a) =>
     Equivs gr gr0 a b -> Property
 prop_CrossAp (g :?=: g') = not (isEmpty g)  ==>
     a === a'
@@ -348,7 +349,7 @@ prop_CrossAp (g :?=: g') = not (isEmpty g)  ==>
         a  = Set $ ap g
         a' = Set $ ap g'
 
-prop_CrossBFS :: (Graph gr2, Graph gr1, Eq a, Eq b) => Equivs gr1 gr2 a b -> Property
+prop_CrossBFS :: (Graph gr2, Graph gr1, Eq a) => Equivs gr1 gr2 a b -> Property
 prop_CrossBFS (g :?=: g') = not (isEmpty g) ==>
     b === b'
     where
@@ -356,7 +357,7 @@ prop_CrossBFS (g :?=: g') = not (isEmpty g) ==>
         b  = Set $ bfs n g
         b' = Set $ bfs n g'
 
-prop_CrossDom :: (Graph gr2, Graph gr1, Eq a, Eq b) => Equivs gr1 gr2 a b -> Property
+prop_CrossDom :: (Graph gr2, Graph gr1, Eq a) => Equivs gr1 gr2 a b -> Property
 prop_CrossDom (g :?=: g') = not (isEmpty g) ==>
     d =~= d'
     where
@@ -364,7 +365,7 @@ prop_CrossDom (g :?=: g') = not (isEmpty g) ==>
         d  = dom g n
         d' = dom g' n
 
-prop_CrossIDom :: (Graph gr2, Graph gr1, Eq a, Eq b) => Equivs gr1 gr2 a b -> Property
+prop_CrossIDom :: (Graph gr2, Graph gr1, Eq a) => Equivs gr1 gr2 a b -> Property
 prop_CrossIDom (g :?=: g') = not (isEmpty g) ==>
     d =~= d'
     where
@@ -372,7 +373,7 @@ prop_CrossIDom (g :?=: g') = not (isEmpty g) ==>
         d  = iDom g n
         d' = iDom g' n
 
-prop_CrossGVDOut :: (Graph gr2, Graph gr1, Eq a, Eq b, Real b, Show b) => Equivs gr1 gr2 a b -> Property
+prop_CrossGVDOut :: (Graph gr2, Graph gr1, Eq a, Real b, Show b) => Equivs gr1 gr2 a b -> Property
 prop_CrossGVDOut (g :?=: g') = not (isEmpty g) ==>
     -- whenFail
     v === v'
@@ -390,7 +391,7 @@ prop_CrossBCC (g :?=: g') = not (isEmpty g) ==>
     b' = Set $ map (convert g) (bcc g')
 
 
-prop_CrossBFSAll :: (Graph gr2, Graph gr1, Eq a, Eq b) => Equivs gr1 gr2 a b -> Property
+prop_CrossBFSAll :: (Graph gr2, Graph gr1, Eq a) => Equivs gr1 gr2 a b -> Property
 prop_CrossBFSAll (g :?=: g') = not (isEmpty g) ==>
   bs === bs'
   where 
@@ -398,7 +399,7 @@ prop_CrossBFSAll (g :?=: g') = not (isEmpty g) ==>
     bs  = map (Set . flip bfs g)  ns 
     bs' = map (Set . flip bfs g') ns
 
-prop_CrossLevel :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossLevel :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> Property
 prop_CrossLevel (g :?=: g') = not (isEmpty g) ==>
   ls === ls' 
   where 
@@ -406,7 +407,7 @@ prop_CrossLevel (g :?=: g') = not (isEmpty g) ==>
     ls  = map (Set . flip level g)  ns 
     ls' = map (Set . flip level g') ns
 
-prop_CrossBFE :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossBFE :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> Property
 prop_CrossBFE (g :?=: g') = not (isEmpty g) ==>
   es === es' 
   where 
@@ -415,7 +416,7 @@ prop_CrossBFE (g :?=: g') = not (isEmpty g) ==>
     es' = map (Set . flip bfe g') ns
 
 
-prop_CrossBFT :: (Graph gr, Graph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossBFT :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> Property
 prop_CrossBFT (g :?=: g') = not (isEmpty g) ==>
   ts === ts' 
   where 
@@ -423,20 +424,146 @@ prop_CrossBFT (g :?=: g') = not (isEmpty g) ==>
     ts  = map (Set . flip bft g)  ns 
     ts' = map (Set . flip bft g') ns
 
+prop_CrossESP :: (Graph gr, Graph gr1, Eq a, Show b) => Equivs gr gr1 a b -> Property
+prop_CrossESP (g :?=: g') = not (isEmpty g) ==>
+  ps === ps' 
+  where 
+    ns  = nodes g 
+    es  = [(n, n') | n <- ns, n' <- ns]
+    ps  = map (flip (uncurry esp) g)  es 
+    ps' = map (flip (uncurry esp) g') es
+
+prop_CrossDFS :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> [Node] -> Property
+prop_CrossDFS (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
+  ds === ds' 
+  where 
+    ns' = filter (flip elem $ nodes g) ns 
+    ds  = Set $ dfs ns' g   
+    ds' = Set $ dfs ns' g' 
+
+prop_CrossDFS' :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> Property
+prop_CrossDFS' (g :?=: g') = not (isEmpty g) ==> 
+  ds === ds' 
+  where 
+    ds  = Set $ dfs' g   
+    ds' = Set $ dfs' g' 
+
+-- helper method to see if two trees have the same structure depthwise
+-- ie. two LayerSets are equal if their nodes are at the same depths 
+eqSetBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+eqSetBy f xs ys = 
+  length xs                    == length ys && 
+  length (intersectBy f xs ys) == length xs &&
+  length (unionBy f xs ys)     == length xs
+
+eqLayers :: Eq a => Tree a -> Tree a -> Bool 
+eqLayers (Node x ts) (Node x' ts') = 
+  x == x' && eqSetBy eqLayers ts ts' 
+
+newtype LayerSet a = LayerSet [Tree a] deriving Show
+
+instance Eq a => Eq (LayerSet a) where 
+  (LayerSet ts) == (LayerSet ts') = eqSetBy eqLayers ts ts'
+
+
+prop_CrossDFF :: (Graph gr, Graph gr1, Eq a) => Equivs gr gr1 a b -> [Node] -> Property
+prop_CrossDFF (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
+  ds === ds'
+  where 
+    ns' = filter (flip elem $ nodes g) ns 
+    ds  = LayerSet $ dff ns' g   
+    ds' = LayerSet $ dff ns' g' 
+
+prop_CrossUDFS :: forall gr gr1 a b. (Graph gr, Graph gr1) => Equivs gr gr1 a b -> [Node] -> Property 
+prop_CrossUDFS (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> conjoin 
+  [
+    ugdfs === g'udfs,
+    gudfs === ug'dfs
+  ]
+  where 
+    ns'    = filter (flip elem $ nodes g) ns 
+    ug     = mkGraph (labNodes g)  ([(b, a, x) | (a, b, x) <- labEdges g] ++ labEdges g) :: gr a b 
+    ug'    = mkGraph (labNodes g') ([(b, a, x) | (a, b, x) <- labEdges g'] ++ labEdges g') :: gr1 a b 
+    ugdfs  = Set $ dfs ns' ug 
+    ug'dfs = Set $ dfs ns' ug'
+    gudfs  = Set $ udfs ns' g 
+    g'udfs = Set $ udfs ns' g'
+
+-- this test isn't actually reasonable; graphs have multiple valid topsorts
+-- TODO: update this so that it checks the validity of the topsorts?
+prop_CrossTS :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossTS (g :?=: g') = 
+  topsort g === topsort g'
+
+prop_CrossSCC :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossSCC (g :?=: g') = 
+  s === s' 
+  where 
+    s  = Set $ map Set (scc g) 
+    s' = Set $ map Set (scc g')
+
+prop_CrossReach :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossReach (g :?=: g') = 
+  rs === rs' 
+  where 
+    ns  = nodes g 
+    rs  = map (Set . flip reachable g) ns 
+    rs' = map (Set . flip reachable g') ns
+
+prop_CrossComps :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossComps (g :?=: g') = 
+  cs === cs' 
+  where 
+    cs  = Set $ map Set (components g) 
+    cs' = Set $ map Set (components g') 
+
+prop_CrossNoComps :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossNoComps (g :?=: g') = 
+  noComponents g === noComponents g'
+
+prop_CrossIsConn :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossIsConn (g :?=: g') = 
+  isConnected g === isConnected g'
+
+prop_CrossCondense :: (DynGraph gr, DynGraph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossCondense (g :?=: g') = 
+  property $ cg `equal'` cg' 
+  where
+    cg  = nmap Set (condensation g)  
+    cg' = nmap Set (condensation g')  
+
+
+-- * Running our test suite
+
 type G0 = Data.Graph.Inductive.Gr 
 type G1 = Data.Graph.Inductive.Tree.Gr
 type GraphPair = Equivs G0 G1 Int Int 
 
+qc :: Testable prop => prop -> IO ()
+qc = quickCheckWith stdArgs{maxSuccess=1000}
+
 suite :: IO () 
 suite = do
-    quickCheck (prop_Equivs      :: GraphPair -> Bool)
-    quickCheck (prop_CrossAp     :: GraphPair -> Property)
-    quickCheck (prop_CrossBFS    :: GraphPair -> Property)
-    quickCheck (prop_CrossDom    :: GraphPair -> Property)
-    quickCheck (prop_CrossIDom   :: GraphPair -> Property)
-    quickCheckWith stdArgs{maxSuccess=1000} (prop_CrossGVDOut :: GraphPair -> Property)
-    quickCheck (prop_CrossBCC    :: GraphPair -> Property)
-    quickCheck (prop_CrossBFSAll :: GraphPair -> Property)
-    quickCheck (prop_CrossLevel  :: GraphPair -> Property)
-    quickCheck (prop_CrossBFE    :: GraphPair -> Property)
-    quickCheck (prop_CrossBFT    :: GraphPair -> Property)
+    qc (prop_Equivs         :: GraphPair -> Bool)
+    qc (prop_CrossAp        :: GraphPair -> Property)
+    qc (prop_CrossBFS       :: GraphPair -> Property)
+    qc (prop_CrossDom       :: GraphPair -> Property)
+    qc (prop_CrossIDom      :: GraphPair -> Property)
+    qc (prop_CrossGVDOut    :: GraphPair -> Property)
+    qc (prop_CrossBCC       :: GraphPair -> Property)
+    qc (prop_CrossBFSAll    :: GraphPair -> Property)
+    qc (prop_CrossLevel     :: GraphPair -> Property)
+    qc (prop_CrossBFE       :: GraphPair -> Property)
+    qc (prop_CrossBFT       :: GraphPair -> Property)
+    qc (prop_CrossESP       :: GraphPair -> Property)
+    qc (prop_CrossDFS       :: GraphPair -> [Node] -> Property)
+    qc (prop_CrossDFS'      :: GraphPair -> Property)
+    qc (prop_CrossDFF       :: GraphPair -> [Node] -> Property)
+    qc (prop_CrossUDFS      :: GraphPair -> [Node] -> Property)
+    qc (prop_CrossTS        :: GraphPair -> Property)
+    qc (prop_CrossSCC       :: GraphPair -> Property)
+    qc (prop_CrossReach     :: GraphPair -> Property)
+    qc (prop_CrossComps     :: GraphPair -> Property)
+    qc (prop_CrossNoComps   :: GraphPair -> Property)
+    qc (prop_CrossIsConn    :: GraphPair -> Property)
+    qc (prop_CrossCondense  :: GraphPair -> Property)
