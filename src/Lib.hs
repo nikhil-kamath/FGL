@@ -533,58 +533,58 @@ prop_CrossCondense (g :?=: g') =
     cg' = nmap Set (condensation g')
 
 prop_CrossVoronoiSet :: (DynGraph gr, DynGraph gr1, Real b) => Equivs gr gr1 a b -> [Node] -> Property
-prop_CrossVoronoiSet (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
-  rss === rss' 
-  where 
+prop_CrossVoronoiSet (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==>
+  rss === rss'
+  where
     ns'  = filter (flip elem $ nodes g) ns
-    v    = gvdIn ns' g 
+    v    = gvdIn ns' g
     v'   = gvdIn ns' g'
-    rss  = map (Set . flip voronoiSet v) ns' 
+    rss  = map (Set . flip voronoiSet v) ns'
     rss' = map (Set . flip voronoiSet v') ns'
 
 prop_CrossVoronoiSet' :: (DynGraph gr, DynGraph gr1, Real b) => Equivs gr gr1 a b -> [Node] -> Property
-prop_CrossVoronoiSet' (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
-  rss === rss' 
-  where 
+prop_CrossVoronoiSet' (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==>
+  rss === rss'
+  where
     ns'  = filter (flip elem $ nodes g) ns
-    v    = gvdOut ns' g 
+    v    = gvdOut ns' g
     v'   = gvdOut ns' g'
-    rss  = map (Set . flip voronoiSet v) ns' 
+    rss  = map (Set . flip voronoiSet v) ns'
     rss' = map (Set . flip voronoiSet v') ns'
 
 prop_CrossNearestNode :: (DynGraph gr, DynGraph gr1, Real b) => Equivs gr gr1 a b -> [Node] -> Property
-prop_CrossNearestNode (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
-  nns === nns' 
-  where 
+prop_CrossNearestNode (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==>
+  nns === nns'
+  where
     ns'  = filter (flip elem $ nodes g) ns
-    v    = gvdOut ns' g 
+    v    = gvdOut ns' g
     v'   = gvdOut ns' g'
-    nns  = map (flip nearestNode v) ns' 
-    nns' = map (flip nearestNode v') ns'
+    nns  = map (`nearestNode` v) ns'
+    nns' = map (`nearestNode` v') ns'
 
 
 prop_CrossNearestDist :: (DynGraph gr, DynGraph gr1, Real b, Show b) => Equivs gr gr1 a b -> [Node] -> Property
-prop_CrossNearestDist (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
-  nns === nns' 
-  where 
+prop_CrossNearestDist (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==>
+  nns === nns'
+  where
     ns'  = filter (flip elem $ nodes g) ns
-    v    = gvdOut ns' g 
+    v    = gvdOut ns' g
     v'   = gvdOut ns' g'
-    nns  = map (flip nearestDist v) ns' 
-    nns' = map (flip nearestDist v') ns'
+    nns  = map (`nearestDist` v) ns'
+    nns' = map (`nearestDist` v') ns'
 
 prop_CrossNearestPath :: (DynGraph gr, DynGraph gr1, Real b, Show b) => Equivs gr gr1 a b -> [Node] -> Property
-prop_CrossNearestPath (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==> 
-  nns === nns' 
-  where 
+prop_CrossNearestPath (g :?=: g') ns = not (isEmpty g) && not (null $ intersect (nodes g) ns) ==>
+  nns === nns'
+  where
     ns'  = filter (flip elem $ nodes g) ns
-    v    = gvdOut ns' g 
+    v    = gvdOut ns' g
     v'   = gvdOut ns' g'
-    nns  = map (flip nearestPath v) ns' 
-    nns' = map (flip nearestPath v') ns'
+    nns  = map (`nearestPath` v) ns'
+    nns' = map (`nearestPath` v') ns'
 
--- Those previous tests discard the majority of their cases 
--- Let's create a new typeclass which includes a subset of the nodes 
+-- Those previous tests discard the majority of their cases
+-- Let's create a new typeclass which includes a subset of the nodes
 -- so that we don't need to include it as a precondition.
 
 data NEquivs gr gr' a b = NE (gr a b) (gr' a b) [Node] deriving Show
@@ -593,7 +593,7 @@ instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (NEquivs 
     arbitrary :: Gen (NEquivs gr gr' a b)
     arbitrary = do
         g   <- arbitrary :: Gen (gr a b)
-        sub <- sublistOf (nodes g) 
+        sub <- sublistOf (nodes g)
         let ns  = labNodes g
             -- es  = labEdges g
             es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
@@ -605,32 +605,79 @@ instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (NEquivs 
 
 
 prop_CrossNearestNode' :: (DynGraph gr, DynGraph gr1, Real b) => NEquivs gr gr1 a b -> Property
-prop_CrossNearestNode' (NE g g' ns) = not (isEmpty g) ==> 
-  nns === nns' 
-  where 
-    v    = gvdOut ns g 
+prop_CrossNearestNode' (NE g g' ns) = not (isEmpty g) ==>
+  nns === nns'
+  where
+    v    = gvdOut ns g
     v'   = gvdOut ns g'
-    nns  = map (flip nearestNode v)  ns 
-    nns' = map (flip nearestNode v') ns
+    nns  = map (`nearestNode` v)  ns
+    nns' = map (`nearestNode` v') ns
 
 
 prop_CrossNearestDist' :: (DynGraph gr, DynGraph gr1, Real b, Show b) => NEquivs gr gr1 a b -> Property
-prop_CrossNearestDist' (NE g g' ns) = not (isEmpty g) ==> 
-  nns === nns' 
-  where 
-    v    = gvdOut ns g 
+prop_CrossNearestDist' (NE g g' ns) = not (isEmpty g) ==>
+  nns === nns'
+  where
+    v    = gvdOut ns g
     v'   = gvdOut ns g'
-    nns  = map (flip nearestDist v)  ns 
-    nns' = map (flip nearestDist v') ns
+    nns  = map (`nearestDist` v)  ns
+    nns' = map (`nearestDist` v') ns
 
 prop_CrossNearestPath' :: (DynGraph gr, DynGraph gr1, Real b, Show b) => NEquivs gr gr1 a b -> Property
-prop_CrossNearestPath' (NE g g' ns) = not (isEmpty g) ==> 
-  nns === nns' 
-  where 
-    v    = gvdOut ns g 
+prop_CrossNearestPath' (NE g g' ns) = not (isEmpty g) ==>
+  nns === nns'
+  where
+    v    = gvdOut ns g
     v'   = gvdOut ns g'
-    nns  = map (flip nearestPath v)  ns 
-    nns' = map (flip nearestPath v') ns
+    nns  = map (`nearestPath` v)  ns
+    nns' = map (`nearestPath` v') ns
+
+prop_CrossIndep :: (DynGraph gr, DynGraph gr1) => Equivs gr gr1 a b -> Property
+prop_CrossIndep (g :?=: g') = not (isEmpty g) ==> 
+  is === is' 
+  where 
+    is  = Set $ indep g 
+    is' = Set $ indep g'
+
+prop_CrossMSTree :: (Graph gr, Graph gr1, Real b, Show b) => Equivs gr gr1 a b -> Property
+prop_CrossMSTree (g :?=: g') = 
+  m === m' 
+  where 
+    m  = msTree g 
+    m' = msTree g'
+
+prop_CrossMSPath :: (Graph gr, Graph gr1, Real b, Show b) => NEquivs gr gr1 a b -> Property
+prop_CrossMSPath (NE g g' ns) = length ns >= 2 ==>  
+  p === p' 
+  where
+    a:b:_ = ns 
+    m  = msTree g 
+    m' = msTree g'
+    p  = msPath m  a b 
+    p' = msPath m' a b
+
+prop_CrossTRC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossTRC (g :?=: g') = 
+  property $ t `equal'` t'
+  where 
+    t  = trc g 
+    t' = trc g'
+
+prop_CrossTC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossTC (g :?=: g') = 
+  property $ t `equal'` t'
+  where 
+    t  = tc g 
+    t' = tc g'
+
+prop_CrossRC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossRC (g :?=: g') = 
+  property $ t `equal'` t'
+  where 
+    t  = rc g 
+    t' = rc g'
+
+
 
 -- * Running our test suite
 type G0 = Data.Graph.Inductive.Gr
@@ -643,37 +690,45 @@ qc = quickCheckWith stdArgs{maxSuccess=1000}
 
 props :: [Property]
 props = [
-    label "prop_Equivs"            (prop_Equivs:: GraphPair -> Bool),
-    label "prop_CrossAp"           (prop_CrossAp:: GraphPair -> Property),
-    label "prop_CrossBFS"          (prop_CrossBFS:: GraphPair -> Property),
-    label "prop_CrossDom"          (prop_CrossDom:: GraphPair -> Property),
-    label "prop_CrossIDom"         (prop_CrossIDom:: GraphPair -> Property),
-    label "prop_CrossGVDOut"       (prop_CrossGVDOut:: GraphPair -> Property),
-    label "prop_CrossBCC"          (prop_CrossBCC:: GraphPair -> Property),
-    label "prop_CrossBFSAll"       (prop_CrossBFSAll:: GraphPair -> Property),
-    label "prop_CrossLevel"        (prop_CrossLevel:: GraphPair -> Property),
-    label "prop_CrossBFE"          (prop_CrossBFE:: GraphPair -> Property),
-    label "prop_CrossBFT"          (prop_CrossBFT:: GraphPair -> Property),
-    label "prop_CrossESP"          (prop_CrossESP:: GraphPair -> Property),
-    label "prop_CrossDFS"          (prop_CrossDFS:: GraphPair -> [Node] -> Property),
-    label "prop_CrossDFS'"         (prop_CrossDFS' :: GraphPair -> Property),
-    label "prop_CrossDFF"          (prop_CrossDFF:: GraphPair -> [Node] -> Property),
-    label "prop_CrossUDFS"         (prop_CrossUDFS:: GraphPair -> [Node] -> Property),
-    label "prop_CrossTS"           (prop_CrossTS:: GraphPair -> Property),
-    label "prop_CrossSCC"          (prop_CrossSCC:: GraphPair -> Property),
-    label "prop_CrossReach"        (prop_CrossReach:: GraphPair -> Property),
-    label "prop_CrossComps"        (prop_CrossComps:: GraphPair -> Property),
-    label "prop_CrossNoComps"      (prop_CrossNoComps:: GraphPair -> Property),
-    label "prop_CrossIsConn"       (prop_CrossIsConn:: GraphPair -> Property),
-    label "prop_CrossCondense"     (prop_CrossCondense:: GraphPair -> Property),
-    label "prop_CrossVoronoiSet"   (prop_CrossVoronoiSet:: GraphPair -> [Node] -> Property),
-    label "prop_CrossVoronoiSet'"  (prop_CrossVoronoiSet':: GraphPair -> [Node] -> Property),
-    label "prop_CrossNearestNode"  (prop_CrossNearestNode:: GraphPair -> [Node] -> Property),
-    label "prop_CrossNearestDist"  (prop_CrossNearestDist:: GraphPair -> [Node] -> Property),
-    label "prop_CrossNearestPath"  (prop_CrossNearestPath:: GraphPair -> [Node] -> Property),
-    label "prop_CrossNearestNode'" (prop_CrossNearestNode':: NGraphPair -> Property),
-    label "prop_CrossNearestDist'" (prop_CrossNearestDist':: NGraphPair -> Property),
-    label "prop_CrossNearestPath'" (prop_CrossNearestPath':: NGraphPair -> Property)
+    label "prop_Equivs"            (prop_Equivs :: GraphPair -> Bool),
+    label "prop_CrossAp"           (prop_CrossAp :: GraphPair -> Property),
+    label "prop_CrossBFS"          (prop_CrossBFS :: GraphPair -> Property),
+    label "prop_CrossDom"          (prop_CrossDom :: GraphPair -> Property),
+    label "prop_CrossIDom"         (prop_CrossIDom :: GraphPair -> Property),
+    label "prop_CrossGVDOut"       (prop_CrossGVDOut :: GraphPair -> Property),
+    label "prop_CrossBCC"          (prop_CrossBCC :: GraphPair -> Property),
+    label "prop_CrossBFSAll"       (prop_CrossBFSAll :: GraphPair -> Property),
+    label "prop_CrossLevel"        (prop_CrossLevel :: GraphPair -> Property),
+    label "prop_CrossBFE"          (prop_CrossBFE :: GraphPair -> Property),
+    label "prop_CrossBFT"          (prop_CrossBFT :: GraphPair -> Property),
+    label "prop_CrossESP"          (prop_CrossESP :: GraphPair -> Property),
+    label "prop_CrossDFS"          (prop_CrossDFS :: GraphPair -> [Node] -> Property),
+    label "prop_CrossDFS'"         (prop_CrossDFS'  :: GraphPair -> Property),
+    label "prop_CrossDFF"          (prop_CrossDFF :: GraphPair -> [Node] -> Property),
+    label "prop_CrossUDFS"         (prop_CrossUDFS :: GraphPair -> [Node] -> Property),
+    label "prop_CrossTS"           (prop_CrossTS :: GraphPair -> Property),
+    label "prop_CrossSCC"          (prop_CrossSCC :: GraphPair -> Property),
+    label "prop_CrossReach"        (prop_CrossReach :: GraphPair -> Property),
+    label "prop_CrossComps"        (prop_CrossComps :: GraphPair -> Property),
+    label "prop_CrossNoComps"      (prop_CrossNoComps :: GraphPair -> Property),
+    label "prop_CrossIsConn"       (prop_CrossIsConn :: GraphPair -> Property),
+    label "prop_CrossCondense"     (prop_CrossCondense :: GraphPair -> Property),
+    label "prop_CrossVoronoiSet"   (prop_CrossVoronoiSet :: GraphPair -> [Node] -> Property),
+    label "prop_CrossVoronoiSet'"  (prop_CrossVoronoiSet' :: GraphPair -> [Node] -> Property),
+    label "prop_CrossNearestNode"  (prop_CrossNearestNode :: GraphPair -> [Node] -> Property),
+    label "prop_CrossNearestDist"  (prop_CrossNearestDist :: GraphPair -> [Node] -> Property),
+    label "prop_CrossNearestPath"  (prop_CrossNearestPath :: GraphPair -> [Node] -> Property),
+    label "prop_CrossNearestNode'" (prop_CrossNearestNode' :: NGraphPair -> Property),
+    label "prop_CrossNearestDist'" (prop_CrossNearestDist' :: NGraphPair -> Property),
+    label "prop_CrossNearestPath'" (prop_CrossNearestPath' :: NGraphPair -> Property),
+    -- this test takes WAY too long to run for some reason
+    -- label "prop_CrossIndep"        (prop_CrossIndep :: GraphPair -> Property),
+    label "prop_CrossMSTree"       (prop_CrossMSTree :: GraphPair -> Property),
+    -- this test doesn't work if there isn't a path between the randomly generated nodes
+    -- label "prop_CrossMSPath"       (prop_CrossMSPath :: NGraphPair -> Property)
+    label "prop_CrossTRC"          (prop_CrossTRC :: GraphPair -> Property),
+    label "prop_CrossTC"           (prop_CrossTC :: GraphPair -> Property),
+    label "prop_CrossRC"           (prop_CrossRC :: GraphPair -> Property)
     ]
 
 suite :: IO ()
