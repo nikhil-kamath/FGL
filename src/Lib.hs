@@ -18,6 +18,21 @@ import Data.List
 import Data.Maybe
 import Control.Monad (forM_)
 
+-- * Here's some settings which our graph generator can enforce
+undirected :: Bool
+undirected = True
+
+positive :: Bool
+positive = True
+
+connected :: Bool
+connected = True
+-- * Modify ^^^^^^^^^^^^^^^^^^^^^
+
+
+
+
+
 -- returns whether two lists contain the same elements with the same cardinalities
 (=~=) :: Eq a => [a] -> [a] -> Bool
 (=~=) xs ys = null (xs \\ ys) && null (ys \\ xs)
@@ -315,28 +330,38 @@ convert :: forall gr gr2 a b. (Graph gr, Graph gr2) => gr a b -> gr2 a b -> gr a
 convert _ g =
   mkGraph (labNodes g) (labEdges g) :: gr a b
 
+-- applies a function if the input is True, otherwise returns the input
+applyIf :: Bool -> a -> (a -> a) -> a
+applyIf False x _ = x
+applyIf True x f = f x
+
 data Equivs gr gr' a b = gr a b :?=: gr' a b deriving Show
 
-instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (Equivs gr gr' a b) where
-    arbitrary :: Gen (Equivs gr gr' a b)
-    arbitrary = do
-        g <- arbitrary :: Gen (gr a b)
-        let ns  = labNodes g
-            -- es  = labEdges g
-            es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
-            -- es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- NEGATIVE WEIGHTS
-            es'  = es ++ [(b, a, x) | (a, b, x) <- es] -- UNDIRECTED
-            g'  = mkGraph ns es' :: gr a b
-            g'' = mkGraph ns es' :: gr' a b
-        return (g' :?=: g'')
+instance (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b), Num b) => Arbitrary (Equivs gr gr0 a b) where
+  arbitrary :: forall gr gr0 a b. (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b), Num b) => Gen (Equivs gr gr0 a b)
+  arbitrary = do
+    -- connected graph generation
+    og <-
+      if connected
+        then arbitrary `suchThat` isConnected
+        else (arbitrary :: Gen (gr a b))
 
-    shrink :: Equivs gr gr' a b -> [Equivs gr gr' a b]
-    shrink (g :?=: _) =
-        let gs = shrink g in
-            map (\j -> j :?=: convert j) gs
-        where
-            convert :: gr a b -> gr' a b
-            convert x = mkGraph (labNodes x) (labEdges x)
+    let ns   = labNodes og
+        es   = labEdges og
+        es'  = applyIf positive es (map (\(a, b, x) -> (a, b, abs x)))
+        es'' = applyIf undirected es' (\xs -> xs ++ [(b, a, x) | (a, b, x) <- xs])
+        g'   = mkGraph ns es'' :: gr a b
+        g''  = mkGraph ns es'' :: gr0 a b
+
+    return (g' :?=: g'')
+
+  shrink :: (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b), Num b) => Equivs gr gr0 a b -> [Equivs gr gr0 a b]
+  shrink (g :?=: _) =
+    let gs = shrink g
+     in map (\j -> j :?=: convert j) gs
+    where
+      convert :: gr a b -> gr0 a b
+      convert x = mkGraph (labNodes x) (labEdges x)
 
 
 prop_Equivs :: (Eq a, Eq b, Graph gr, Graph gr') => Equivs gr gr' a b -> Bool
@@ -633,48 +658,48 @@ prop_CrossNearestPath' (NE g g' ns) = not (isEmpty g) ==>
     nns' = map (`nearestPath` v') ns
 
 prop_CrossIndep :: (DynGraph gr, DynGraph gr1) => Equivs gr gr1 a b -> Property
-prop_CrossIndep (g :?=: g') = not (isEmpty g) ==> 
-  is === is' 
-  where 
-    is  = Set $ indep g 
+prop_CrossIndep (g :?=: g') = not (isEmpty g) ==>
+  is === is'
+  where
+    is  = Set $ indep g
     is' = Set $ indep g'
 
 prop_CrossMSTree :: (Graph gr, Graph gr1, Real b, Show b) => Equivs gr gr1 a b -> Property
-prop_CrossMSTree (g :?=: g') = 
-  m === m' 
-  where 
-    m  = msTree g 
+prop_CrossMSTree (g :?=: g') =
+  m === m'
+  where
+    m  = msTree g
     m' = msTree g'
 
 prop_CrossMSPath :: (Graph gr, Graph gr1, Real b, Show b) => NEquivs gr gr1 a b -> Property
-prop_CrossMSPath (NE g g' ns) = length ns >= 2 ==>  
-  p === p' 
+prop_CrossMSPath (NE g g' ns) = length ns >= 2 ==>
+  p === p'
   where
-    a:b:_ = ns 
-    m  = msTree g 
+    a:b:_ = ns
+    m  = msTree g
     m' = msTree g'
-    p  = msPath m  a b 
+    p  = msPath m  a b
     p' = msPath m' a b
 
 prop_CrossTRC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
-prop_CrossTRC (g :?=: g') = 
+prop_CrossTRC (g :?=: g') =
   property $ t `equal'` t'
-  where 
-    t  = trc g 
+  where
+    t  = trc g
     t' = trc g'
 
 prop_CrossTC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
-prop_CrossTC (g :?=: g') = 
+prop_CrossTC (g :?=: g') =
   property $ t `equal'` t'
-  where 
-    t  = tc g 
+  where
+    t  = tc g
     t' = tc g'
 
 prop_CrossRC :: (DynGraph gr, DynGraph gr1, Eq a, Eq b) => Equivs gr gr1 a b -> Property
-prop_CrossRC (g :?=: g') = 
+prop_CrossRC (g :?=: g') =
   property $ t `equal'` t'
-  where 
-    t  = rc g 
+  where
+    t  = rc g
     t' = rc g'
 
 
