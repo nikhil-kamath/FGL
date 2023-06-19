@@ -44,29 +44,49 @@ instance Eq a => Eq (Set a) where
 -- dataclass for making equivalent graph pairs
 data Equivs gr gr' a b = gr a b :?=: gr' a b deriving Show
 
-instance (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b), Num b) => Arbitrary (Equivs gr gr0 a b) where
-    arbitrary :: forall gr gr0 a b. (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b),Num b) => Gen (Equivs gr gr0 a b)
-    arbitrary = do
-        -- connected graph generation
-        og <- if connected
-            then arbitrary `suchThat` isConnected
-            else (arbitrary :: Gen (gr a b))
+-- instance (Graph gr, Graph gr0, Arbitrary (gr a b), Num b) => Arbitrary (Equivs gr gr0 a b) where
+--     arbitrary :: Gen (Equivs gr gr0 a b)
+--     arbitrary = do
+--         -- connected graph generation
+--         -- og <- if connected
+--         --     then (arbitrary :: Gen (gr a b)) `suchThat` isConnected
+--         --     else (arbitrary :: Gen (gr a b))
+--         og <- arbitrary :: Gen (gr a b)
 
-        let ns   = labNodes og
-            es   = labEdges og
-            es'  = applyIf positive   es  (map (\(a, b, x) -> (a, b, abs x)))
-            es'' = applyIf undirected es' (\xs -> xs ++ [(b, a, x) | (a, b, x) <- xs])
-            g'   = mkGraph ns es'' :: gr a b
-            g''  = mkGraph ns es'' :: gr0 a b
+--         let ns   = labNodes og
+--             es   = labEdges og
+--             es'  = applyIf positive   es  (map (\(a, b, x) -> (a, b, abs x)))
+--             es'' = applyIf undirected es' (\xs -> xs ++ [(b, a, x) | (a, b, x) <- xs])
+--             g'   = mkGraph ns es'' :: gr a b
+--             g''  = mkGraph ns es'' :: gr0 a b
+
+--         return (g' :?=: g'')
+
+--     shrink :: Equivs gr gr0 a b -> [Equivs gr gr0 a b]
+--     shrink (g :?=: _) =
+--         let gs = shrink g in
+--             map (\j -> j :?=: convert j) gs
+--         where
+--             convert :: gr a b -> gr0 a b
+--             convert x = mkGraph (labNodes x) (labEdges x)
+
+instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (Equivs gr gr' a b) where
+    arbitrary :: Gen (Equivs gr gr' a b)
+    arbitrary = do
+        g <- arbitrary :: Gen (gr a b)
+        let ns  = labNodes g
+            es  = labEdges g
+            g'  = mkGraph ns es :: gr a b
+            g'' = mkGraph ns es :: gr' a b
 
         return (g' :?=: g'')
 
-    shrink :: (Graph gr, Graph gr0, Arbitrary (gr a b), Arbitrary (gr0 a b), Num b) => Equivs gr gr0 a b -> [Equivs gr gr0 a b]
+    shrink :: Equivs gr gr' a b -> [Equivs gr gr' a b]
     shrink (g :?=: _) =
         let gs = shrink g in
             map (\j -> j :?=: convert j) gs
         where
-            convert :: gr a b -> gr0 a b
+            convert :: gr a b -> gr' a b
             convert x = mkGraph (labNodes x) (labEdges x)
 
 
