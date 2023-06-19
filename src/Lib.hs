@@ -17,10 +17,7 @@ import Data.Tree
 import Data.List
 import Data.Maybe
 import Control.Monad (forM_)
-
--- returns whether two lists contain the same elements with the same cardinalities
-(=~=) :: Eq a => [a] -> [a] -> Bool
-(=~=) xs ys = null (xs \\ ys) && null (ys \\ xs)
+import Types
 
 -- * Section 1: Validity Testing
 
@@ -292,15 +289,6 @@ prop_NothingFilter g =
 -- we should test that multiple implementations of Graph
 -- have the same results when we call various functions on them.
 
--- wrapper around the list type which allows for checking
--- if two lists contain the same elements
-newtype Set a = Set [a]
-    deriving Show
-
-instance Eq a => Eq (Set a) where
-    (==) :: Set a -> Set a -> Bool
-    (Set xs) == (Set ys) = xs =~= ys
-
 -- convert the second graph into an instance of the first
 -- to compare 2 different implementations
 equal' :: (Eq a, Eq b, Graph gr, Graph gr') => gr a b -> gr' a b -> Bool
@@ -315,30 +303,7 @@ convert :: forall gr gr2 a b. (Graph gr, Graph gr2) => gr a b -> gr2 a b -> gr a
 convert _ g =
   mkGraph (labNodes g) (labEdges g) :: gr a b
 
-data Equivs gr gr' a b = gr a b :?=: gr' a b deriving Show
-
-instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (Equivs gr gr' a b) where
-    arbitrary :: Gen (Equivs gr gr' a b)
-    arbitrary = do
-        g <- arbitrary :: Gen (gr a b)
-        let ns  = labNodes g
-            -- es  = labEdges g
-            es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
-            -- es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- NEGATIVE WEIGHTS
-            es'  = es ++ [(b, a, x) | (a, b, x) <- es] -- UNDIRECTED
-            g'  = mkGraph ns es' :: gr a b
-            g'' = mkGraph ns es' :: gr' a b
-        return (g' :?=: g'')
-
-    shrink :: Equivs gr gr' a b -> [Equivs gr gr' a b]
-    shrink (g :?=: _) =
-        let gs = shrink g in
-            map (\j -> j :?=: convert j) gs
-        where
-            convert :: gr a b -> gr' a b
-            convert x = mkGraph (labNodes x) (labEdges x)
-
-
+  
 prop_Equivs :: (Eq a, Eq b, Graph gr, Graph gr') => Equivs gr gr' a b -> Bool
 prop_Equivs (g :?=: g') = g `equal'` g'
 
@@ -447,23 +412,6 @@ prop_CrossDFS' (g :?=: g') = not (isEmpty g) ==>
   where
     ds  = Set $ dfs' g
     ds' = Set $ dfs' g'
-
--- helper method to see if two trees have the same structure depthwise
--- ie. two LayerSets are equal if their nodes are at the same depths
-eqSetBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
-eqSetBy f xs ys =
-  length xs                    == length ys &&
-  length (intersectBy f xs ys) == length xs &&
-  length (unionBy f xs ys)     == length xs
-
-eqLayers :: Eq a => Tree a -> Tree a -> Bool
-eqLayers (Node x ts) (Node x' ts') =
-  x == x' && eqSetBy eqLayers ts ts'
-
-newtype LayerSet a = LayerSet [Tree a] deriving Show
-
-instance Eq a => Eq (LayerSet a) where
-  (LayerSet ts) == (LayerSet ts') = eqSetBy eqLayers ts ts'
 
 
 prop_CrossDFF :: (Graph gr, Graph gr1) => Equivs gr gr1 a b -> [Node] -> Property
@@ -583,26 +531,6 @@ prop_CrossNearestPath (g :?=: g') ns = not (isEmpty g) && not (null $ intersect 
     nns  = map (`nearestPath` v) ns'
     nns' = map (`nearestPath` v') ns'
 
--- Those previous tests discard the majority of their cases
--- Let's create a new typeclass which includes a subset of the nodes
--- so that we don't need to include it as a precondition.
-
-data NEquivs gr gr' a b = NE (gr a b) (gr' a b) [Node] deriving Show
-
-instance (Graph gr, Graph gr', Arbitrary (gr a b), Num b) => Arbitrary (NEquivs gr gr' a b) where
-    arbitrary :: Gen (NEquivs gr gr' a b)
-    arbitrary = do
-        g   <- arbitrary :: Gen (gr a b)
-        sub <- sublistOf (nodes g)
-        let ns  = labNodes g
-            -- es  = labEdges g
-            es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- POSITIVE WEIGHTS
-            -- es  = map (\(a, b, x) -> (a, b, abs x)) (labEdges g) -- NEGATIVE WEIGHTS
-            es'  = es ++ [(b, a, x) | (a, b, x) <- es] -- UNDIRECTED
-            g'  = mkGraph ns es' :: gr a b
-            g'' = mkGraph ns es' :: gr' a b
-        return (NE g' g'' sub)
-
 
 prop_CrossNearestNode' :: (DynGraph gr, DynGraph gr1, Real b) => NEquivs gr gr1 a b -> Property
 prop_CrossNearestNode' (NE g g' ns) = not (isEmpty g) ==>
@@ -678,6 +606,21 @@ prop_CrossRC (g :?=: g') =
     t' = rc g'
 
 
+-- MAXFLOW algorithms 
+prop_CrossAugmentGraph :: (DynGraph gr, DynGraph gr1, Num b, Eq a, Eq b) => Equivs gr gr1 a b -> Property
+prop_CrossAugmentGraph (g :?=: g') = 
+  property $ a `equal'` a' 
+  where 
+    a  = augmentGraph g 
+    a' = augmentGraph g'
+
+prop_CrossMF :: (DynGraph gr, DynGraph gr1, Num b, Ord b, Eq a, Eq b) => NEquivs gr gr1 a b -> Property
+prop_CrossMF (NE g g' ns) = length ns >= 2 ==> 
+  property $ m `equal'` m' 
+  where 
+    a:b:_ = ns 
+    m     = mf g  a b 
+    m'    = mf g' a b
 
 -- * Running our test suite
 type G0 = Data.Graph.Inductive.Gr
@@ -728,7 +671,9 @@ props = [
     -- label "prop_CrossMSPath"       (prop_CrossMSPath :: NGraphPair -> Property)
     label "prop_CrossTRC"          (prop_CrossTRC :: GraphPair -> Property),
     label "prop_CrossTC"           (prop_CrossTC :: GraphPair -> Property),
-    label "prop_CrossRC"           (prop_CrossRC :: GraphPair -> Property)
+    label "prop_CrossRC"           (prop_CrossRC :: GraphPair -> Property),
+    label "prop_CrossAugmentGraph" (prop_CrossAugmentGraph :: GraphPair -> Property),
+    label "prop_CrossMF"           (prop_CrossMF :: NGraphPair -> Property)
     ]
 
 suite :: IO ()

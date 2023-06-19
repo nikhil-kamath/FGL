@@ -4,7 +4,7 @@ github:              "nikhil-kamath/FGL"
 license:             BSD3
 author:              "Nikhil Kamath"
 maintainer:          "nikhil.k123234@gmail.com"
-copyright:           "2023 Nikhil Kamath" 
+copyright:           "2023 Nikhil Kamath"
 
 extra-source-files:
 - README.md
@@ -23,7 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - QuickCheck
 - fgl
-- fgl-arbitrary 
+- fgl-arbitrary
 - containers
 
 ghc-options:

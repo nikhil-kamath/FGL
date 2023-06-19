@@ -30,7 +30,7 @@ resolver:
 #   - auto-update
 #   - wai
 packages:
-- . 
+- .
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
 # forks / in-progress versions pinned to a git hash. For example:
@@ -41,9 +41,9 @@ packages:
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
 # extra-deps: []
-extra-deps: 
-  - fgl-arbitrary-0.2.0.6 
-  - git: https://github.com/haskell/fgl 
+extra-deps:
+  - fgl-arbitrary-0.2.0.6
+  - git: https://github.com/haskell/fgl
     commit: a2c7fb6bd4b5658c885f0927dad7d61dd7a94f80
 # Override default flag values for local packages and extra-deps
 # flags: {}
