@@ -25,7 +25,11 @@ source-repository head
 
 library
   exposed-modules:
+      Basic
+      Config
       Lib
+      Types
+      Util
   other-modules:
       Paths_FGL
   hs-source-dirs:
