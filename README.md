@@ -1,7 +1,7 @@
 # FGL
 This suite is made for automatic, model-based testing of graph algorithms!
 
-##### How it Works
+#### How it Works
 Essentially, a model-based test compares two implementations of the same problem to ensure an algorithm provides the same output on both of them.
 
 I've created a variety of pre-programmed tests which compare the outputs of builtin graph implementations in Haskell, namely the `Patricia Tree` and the `Tree`.
@@ -14,17 +14,17 @@ The suite:
 
 And repeats, thousands of times, automatically!
 
-##### Running the Tests
+#### Running the Tests
 To execute the test suite, run:
  ```
  $ stack build; stack run
  ```
 All of the tests correspond to a particular graph function in the builtin `FGL` library.
 
-##### Extra Configuration
+#### Extra Configuration
 You can make the generator only create `undirected`, `connected`, or `positive` graphs by adjusting those settings within `src/Config.hs`
 
-##### Visualization
+#### Visualization
 The tests will output any counter-example graphs to the terminal. It prints them out as:
  ```
  <test name>
